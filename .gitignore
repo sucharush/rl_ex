@@ -1,0 +1,48 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# Environment files
+.venv/
+env/
+venv/
+ENV/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# VS Code settings
+.vscode/
+
+# PyCharm settings (optional, remove if not needed)
+.idea/
+
+# Operating system files
+.DS_Store
+
+# Logs
+*.log
+
+# plots
+*.png
+*.gif
+*.pdf
+
+# folders
+data/
+plots/
+gifs/
+
+# project specific files
+playground.py
+playground.ipynb
