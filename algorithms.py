@@ -47,7 +47,7 @@ def train_sarsa(env, episodes=300, alpha=0.1, gamma=1,
             total_used_iters = 0
             steps = 0
             done = False
-
+ 
             while not done:
                 s2, r, done = env.step(a)
                 G += r
