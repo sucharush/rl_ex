@@ -41,8 +41,9 @@ ENV/
 # folders
 data/
 plots/
-gifs/
+
 
 # project specific files
 playground.py
 playground.ipynb
+*gifs*

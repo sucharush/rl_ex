@@ -47,7 +47,7 @@ def train_sarsa(env, episodes=300, alpha=0.1, gamma=1,
             total_used_iters = 0
             steps = 0
             done = False
- 
+
             while not done:
                 s2, r, done = env.step(a)
                 G += r
@@ -59,6 +59,8 @@ def train_sarsa(env, episodes=300, alpha=0.1, gamma=1,
                     target = r
                 else:
                     a2 = epsilon_greedy(Q, s2, eps, nA)
+                    if env.is_stalled():
+                        a2 = nA - 1
                     target = r + gamma * Q[s2][a2]
 
                 Q[s][a] += alpha * (target - Q[s][a])
@@ -113,9 +115,15 @@ def train_q_learning(
 
             while not done:
                 # 1) greedly choose action
-                a = epsilon_greedy(Q, s, eps, nA)
+                if env.is_stalled():
+                    a = nA-1
+                    # print(a)
+                else:
+                    a = epsilon_greedy(Q, s, eps, nA)
+                # a = epsilon_greedy(Q, s, eps, nA)
 
                 # 2) step in env
+    
                 s2, r, done = env.step(a)
                 G += r
                 steps += 1
