@@ -12,6 +12,32 @@ class Rectangle:
         self._points_distance_ls = None
         self._points_side_ls = None
         self._latest_info = (center, theta)
+        self.update_directions()
+
+    def get_local_directions(self):
+        """
+        Return unit vectors (horizontal, vertical) in world coordinates
+        according to the current orientation theta.
+        """
+        c, s = np.cos(self.theta), np.sin(self.theta)
+        # rotation matrix
+        R = np.array([[c, -s], [s, c]])
+        horiz = R @ np.array([1.0, 0.0])
+        vert = R @ np.array([0.0, 1.0])
+        return horiz, vert
+
+    def update_directions(self):
+        c, s = np.cos(self.theta), np.sin(self.theta)
+        self.horiz = np.array([c, s])  # local x in world
+        self.vert = np.array([-s, c])  # local y in world
+    
+    def copy(self):
+        return Rectangle(
+            center=(self.cx, self.cy),
+            width=self.hw * 2,
+            height=self.hh * 2,
+            theta=self.theta,
+        )
 
     def get_corners(self):
         hw, hh = self.hw, self.hh
@@ -33,14 +59,6 @@ class Rectangle:
         rotated += np.array([self.cx, self.cy])
         return rotated  # shape (4, 2)
 
-    def copy(self):
-        return Rectangle(
-            center=(self.cx, self.cy),
-            width=self.hw * 2,
-            height=self.hh * 2,
-            theta=self.theta,
-        )
-
     def get_sides(self):
         c = self.get_corners()
         return {
@@ -50,10 +68,14 @@ class Rectangle:
             "bottom": (c[3], c[0]),
         }
 
+    def get_local_directions(self):
+        return self.horiz, self.vert
+
     def move(self, dx=0.0, dy=0.0, theta=0.0):
         self.cx += dx
         self.cy += dy
         self.theta += theta
+        self.update_directions()
 
     def plot(self, ax=None, **kwargs):
         if ax is None:
@@ -175,3 +197,64 @@ class Rectangle:
             points.append(point)
 
         return np.array(points)
+
+    def sample(self, num_points=10, jitter_t=0.0, jitter_n=0.0, rng=None, include_corners=False):
+        """
+        Deterministic, near-uniform sampling along the rectangle perimeter.
+        - counts per side ∝ side length
+        - evenly spaced along each side
+        - optional jitter: along-edge (jitter_t) and normal (jitter_n)
+        """
+        if rng is None:
+            rng = np.random.default_rng()
+
+        # Build edges in world coords (p1->p2). Assumes get_sides() has stable ordering.
+        sides = list(self.get_sides().values())  # [(p1, p2), ...]  four edges
+        p1s = np.stack([p1 for (p1, _) in sides], axis=0)   # (4,2)
+        p2s = np.stack([p2 for (_, p2) in sides], axis=0)   # (4,2)
+
+        vecs = p2s - p1s                      # (4,2)
+        lengths = np.linalg.norm(vecs, axis=1).astype(float)  # (4,)
+        total = lengths.sum()
+
+        if total == 0:
+            return np.empty((0, 2))
+
+        # Allocate counts ∝ length (use largest fractional remainders to hit exact N)
+        raw = num_points * lengths / total
+        counts = np.floor(raw).astype(int)
+        remainder = num_points - counts.sum()
+        if remainder > 0:
+            order = np.argsort(raw - counts)[::-1]  # largest fractional parts first
+            counts[order[:remainder]] += 1
+
+        # Unit tangents and normals for jitter
+        tangents = np.divide(vecs, lengths[:, None], where=lengths[:, None] > 0)
+        normals = np.stack([tangents[:, 1], -tangents[:, 0]], axis=1)  # +90°
+
+        pts = []
+        for i, k in enumerate(counts):
+            if k <= 0:
+                continue
+
+            # Evenly spaced parameters along the edge
+            if include_corners:
+                t = np.linspace(0.0, 1.0, k, endpoint=True)
+            else:
+                t = (np.arange(1, k + 1) / (k + 1))  # avoid corners
+
+            base = p1s[i] + t[:, None] * vecs[i]  # (k,2)
+
+            # Jitter: small along-edge (keeps approximate uniformity), and/or small normal "thickness"
+            if jitter_t > 0:
+                jt = rng.normal(scale=jitter_t, size=k)
+                base = base + jt[:, None] * tangents[i]
+            if jitter_n > 0:
+                jn = rng.normal(scale=jitter_n, size=k)
+                base = base + jn[:, None] * normals[i]
+
+            pts.append(base)
+
+        return np.vstack(pts) if pts else np.empty((0, 2))
+    
+    

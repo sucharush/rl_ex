@@ -1,2 +1,3 @@
-exercise during the internship
-Tabular methods RL on rectangle aligning problem
+Toy example from internship
+
+Tabular methods on rectangle aligning problem

@@ -128,7 +128,7 @@ def sanity_check_step_optimizer():
     """
     rect = Rectangle(center=(0, 0), width=2.0, height=1.0, theta=0.0)
     _, ax = plt.subplots()
-    rect.plot(ax=ax, color='gray', linestyle='--')
+    rect.plot(ax=ax, color='black', linestyle='-')
     
     # Initial points
     points = np.array([[3.0, 1.0], [3.0, 0.0], [2.0, 0.0], [1.0, 1.0]])
@@ -142,7 +142,8 @@ def sanity_check_step_optimizer():
         used1, delta1 = optimizer.run(
             rect=rect, points=points, direction="horizontal", max_nfev=100
         )
-        points[:, 0] += delta1
+        # points[:, 0] += delta1
+        rect.move(dx=delta1, dy=0.0, theta=0.0)
         max_iter += 1
         print(f"Step {max_iter}: horizontal, shift={delta1}, used_iters={used1}")
 
@@ -150,11 +151,13 @@ def sanity_check_step_optimizer():
             rect=rect, points=points, direction="vertical", max_nfev=100
         )
         max_iter += 1
+        rect.move(dx=0.0, dy=delta2, theta=0.0)
         print(f"Step {max_iter}: vertical, shift={delta2}, used_iters={used2}")
-        points[:, 1] += delta2
+        # points[:, 1] += delta2
 
     # Final points
-    ax.scatter(points[:, 0], points[:, 1], color="black", marker="o", label="Final Points")
+    ax.scatter(points[:, 0], points[:, 1], color="red", marker="o", label="Points")
+    rect.plot(ax=ax, color='gray', linestyle = '--', label='Final Rectangle')
     ax.legend()
     plt.show()
 # sanity_check_step_optimizer()
@@ -211,7 +214,7 @@ def check_axis_isolation(env):
     env.apply_action(3)  # ("horizontal", 2)
     print(f"  horizontal: y unchanged? {np.allclose(env.points[:,1], y0)} | x changed? {not np.allclose(env.points[:,0], x0)}")
 
-def rollout_and_print(env, steps=12):
+def rollout_and_print(env, steps=20):
     print("\n[run] short rollout using env.step()")
     env.reset()
     # Compute initial mean distance
@@ -219,8 +222,8 @@ def rollout_and_print(env, steps=12):
     print(f"{'t':>2}  {'action':>12}  {'used':>4}  {'mean_before':>12}  {'mean_after':>11}  {'imprv':>7}  {'reward':>9}")
     print("-"*72)
 
-    # Cycle through all 6 actions to exercise budgets/directions
-    action_order = [3, 0, 4, 1, 5, 2]  # H2, V2, H4, V4, H6, V6
+    # Cycle through all 18 actions to exercise budgets/directions
+    action_order = [3, 0, 4, 1, 5, 2, 6, 7, 8, 9, 10, 13, 17, 12, 14, 15, 2, 5, 16]  # H2, V2, H4, V4, H6, V6
     for t in range(steps):
         a = action_order[t % len(action_order)]
         direction, budget = env.actions[a]

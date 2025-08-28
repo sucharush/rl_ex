@@ -9,17 +9,18 @@ import os
 
 
 class RectangleEnv:
-    def __init__(self, rect_params, optimizer_params, points, verbose=False):
+    def __init__(self, rect_params, optimizer_params, points, verbose=False, max_steps=50):
         self.rect_params = rect_params
         self.optimizer_params = optimizer_params
         self.starting_points = points
         self.points = points
-        self.max_steps = 30
+        self.max_steps = max_steps
         self.steps = 0
         self.latest_delta = 100  # large initial delta to ensure first move is always accepted
         self.latest_used_iters = None
+        self.optimizer_iters = 0
         self.shift_steps = 0
-        self.tau = optimizer_params.get("tau", 0.1)  # default tau
+        self.tau = optimizer_params.get("tau", 0.2)  # default tau
         self.close = 0.4
         self.manual_shift = 0.5  # manual step size for move actions
         self.manual_rotate = np.pi / 4  # manual rotation step size
@@ -57,7 +58,6 @@ class RectangleEnv:
         def verbose_print(*args, **kwargs):
             if verbose:
                 print(*args, **kwargs)
-
         return verbose_print
 
     def reset(self):
@@ -65,6 +65,7 @@ class RectangleEnv:
         self.points = self.starting_points.copy()
         self.steps = 0
         self.latest_used_iters = 0
+        self.optimizer_iters = 0
         self._old_dist = self.rectangle.get_mean_dist(points=self.points)
         self.log = []
         self._xlim = None
@@ -78,19 +79,21 @@ class RectangleEnv:
 
         direction, steps = action
         dx = dy = theta = 0.0
+        horiz, vert = self.rectangle.get_local_directions()
         if direction == "move":
             # print("direct_move")
             # pass
             if isinstance(steps, tuple):
                 steps, delta = steps
             if steps == "up":
-                dy = +delta
+                # dy = +delta
+                dx, dy = delta * vert
             elif steps == "down":
-                dy = -delta
+                dx, dy = -delta * vert
             elif steps == "right":
-                dx = +delta
+                dx, dy = delta * horiz
             elif steps == "left":
-                dx = -delta
+                dx, dy = -delta * horiz
             elif steps == "rotate":
                 # print("manual rotate")
                 delta = self.manual_rotate
@@ -98,20 +101,24 @@ class RectangleEnv:
             else:
                 raise ValueError(f"Unknown move param: {steps}")
             logged_data = f"STEP {self.steps+1} >>>>>> Action: {action}, Delta: {delta}, Old Dist: {self._old_dist:.4f}"
-            self.latest_used_iters = 0.5  # manual move always uses 1 iteration
+            self.latest_used_iters = 0.5  # manual move always uses 0.5 iteration
         else:
             used, delta = self.optimizer.run(
                 self.rectangle, self.points, direction, max_nfev=steps
             )
             logged_data = f"STEP {self.steps+1} >>>>>> Action: {action}, Used: {used}, Delta: {delta}, Old Dist: {self._old_dist:.4f}"
             # print(f"Rectangle info: {(self.rectangle.cx, self.rectangle.cy)} ")
+            self.optimizer_iters += used
 
             if direction == "vertical":
-                dy = delta
+                dvec = vert
+                dx, dy = delta * dvec
                 # self.rectangle.move(dy=-delta)
                 # self.points[:, 1] += delta
             elif direction == "horizontal":
-                dx = delta
+                # dx = delta
+                dvec = horiz
+                dx, dy = delta * dvec
                 # self.rectangle.move(dx=-delta)
                 # self.points[:, 0] += delta
             elif direction == "rotate":
@@ -119,6 +126,7 @@ class RectangleEnv:
                 used = used / 3
                 # No change to points, rotation is around the rectangle's center
             self.latest_used_iters = used
+
         self.rectangle._latest_info = (
             (self.rectangle.cx, self.rectangle.cy),
             self.rectangle.theta,
@@ -127,12 +135,13 @@ class RectangleEnv:
         self.log.append(logged_data)
         self.latest_delta = delta
 
-    def step(self, action):
+    def step(self, action, render=False):
         self.apply_action(action)
         state = self.encode_state()
         reward = self.compute_reward()
         self.steps += 1
-        self.render()
+        if render:
+            self.render()
         done = self.is_terminal()
         # print(done)
         return state, reward, done
@@ -146,7 +155,7 @@ class RectangleEnv:
         # for f in self.frames:
         #     os.remove(f)
 
-    def compute_reward(self, alpha=1.0, beta=0.5, stalled_pen=1):
+    def compute_reward(self, alpha=1.0, beta=0.2, stalled_pen=1):
         new_dist = self.rectangle.get_mean_dist(points=self.points)
         self.log.append(f"New Distance: {new_dist}")
         improv = self._old_dist - new_dist
@@ -156,7 +165,7 @@ class RectangleEnv:
         # reward = - self.latest_used_iters
         # Update memory so next step compares to this state's distance
         self._old_dist = new_dist
-        return reward + 100 * self.is_all_touching()  # bonus for touching all sides
+        return reward + 10 * self.is_all_touching()  # bonus for touching all sides
 
     def encode_state(self):
         # Count by closest side
@@ -194,6 +203,7 @@ class RectangleEnv:
             num_touching,
         )
         self.state = state
+        self.log.append(f"State: {state}")
 
         return state
 
@@ -203,7 +213,9 @@ class RectangleEnv:
     def is_stalled(self):
         # Check if the rectangle has not moved significantly
         # or if the points have not changed position
-        return self.latest_delta < 1e-6
+        # if abs(self.latest_delta) < 1e-6:
+        #     print(f"delta: {self.latest_delta}")
+        return abs(self.latest_delta) < 1e-6
 
     def is_terminal(self):
         # distances = np.array(self.rectangle.points_distance(points=self.points))
@@ -222,7 +234,7 @@ class RectangleEnv:
         self._xlim = self._ylim = None
         self._xticks = self._yticks = None
 
-    def render(self, lock_square=False):
+    def render(self, lock_square=False, show=False):
         fig, ax = plt.subplots()
         self.rectangle.plot(ax, color="gray")
         ax.scatter(self.points[:, 0], self.points[:, 1], color="red")
@@ -253,7 +265,10 @@ class RectangleEnv:
         ax.set_ylim(*self._ylim)
         ax.set_title(f"Step {self.steps}")
         # plt.show()
-        fname = f"plots/frame_{self.steps}.png"
-        fig.savefig(fname)
-        plt.close(fig)  # don’t open windows
-        self.frames.append(fname)
+        if show:
+            plt.show()
+        else:
+            fname = f"plots/frame_{self.steps}.png"
+            fig.savefig(fname)
+            plt.close(fig)  # don’t open windows
+            self.frames.append(fname)

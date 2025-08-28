@@ -51,7 +51,42 @@ class StepOptimizer:
 
         # Hinge-to-threshold residuals (least-squares-friendly):
         return np.maximum(0.0, distance_new)
+    
+    def _residuals(self, t, points, direction, rect=Rectangle):
+        shift = float(t[0])
+        pts = points.copy()
+        virtual_rect = rect.copy()
 
+        dx, dy, theta = 0.0, 0.0, 0.0
+        if direction in ("horizontal", "vertical"):
+            horiz, vert = virtual_rect.get_local_directions()
+            dvec = horiz if direction == "horizontal" else vert
+            dx, dy = shift * dvec
+
+        elif direction == "rotate":
+            theta = shift
+
+        virtual_rect.move(dx=dx, dy=dy, theta=theta)
+        distance_new = virtual_rect.points_distance(pts, distance_only=True)
+
+        return np.maximum(0.0, distance_new)
+
+    def run(self, rect, points, direction, max_nfev):
+        self._validate_inputs(rect, points, direction)
+        x0 = np.array([0.0])
+        fun = lambda t: self._residuals(t, points, direction, rect=rect)
+        res = least_squares(
+            fun,
+            x0,
+            method="trf",
+            loss=self.loss,
+            max_nfev=max_nfev,
+            bounds=self.bounds if self.bounds is not None else (-np.inf, np.inf),
+        )
+        delta = float(res.x[0])
+        used = res.nfev
+        return used, delta
+    
     def run(self, rect, points, direction, max_nfev):
         self._validate_inputs(rect, points, direction)
         x0 = np.array([0.0])

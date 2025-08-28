@@ -47,3 +47,5 @@ plots/
 playground.py
 playground.ipynb
 *gifs*
+
+*.ipynb
