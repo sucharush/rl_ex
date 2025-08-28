@@ -1,3 +1,3 @@
-Toy example from internship
+<!-- Toy example from internship -->
 
 Tabular methods on rectangle aligning problem
