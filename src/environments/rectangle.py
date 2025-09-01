@@ -25,12 +25,13 @@ class Rectangle:
         horiz = R @ np.array([1.0, 0.0])
         vert = R @ np.array([0.0, 1.0])
         return horiz, vert
+    
 
     def update_directions(self):
         c, s = np.cos(self.theta), np.sin(self.theta)
         self.horiz = np.array([c, s])  # local x in world
         self.vert = np.array([-s, c])  # local y in world
-    
+
     def copy(self):
         return Rectangle(
             center=(self.cx, self.cy),
@@ -41,23 +42,18 @@ class Rectangle:
 
     def get_corners(self):
         hw, hh = self.hw, self.hh
-        corners = np.array(
-            [
-                [-hw, -hh],  # bottom-left
-                [-hw, hh],  # top-left
-                [hw, hh],  # top-right
-                [hw, -hh],  # bottom-right
-            ]
-        )
-        R = np.array(
-            [
-                [np.cos(self.theta), -np.sin(self.theta)],
-                [np.sin(self.theta), np.cos(self.theta)],
-            ]
-        )
-        rotated = corners @ R.T
-        rotated += np.array([self.cx, self.cy])
-        return rotated  # shape (4, 2)
+        corners = np.array([
+            [-hw, -hh],  # bottom-left
+            [-hw,  hh],  # top-left
+            [ hw,  hh],  # top-right
+            [ hw, -hh],  # bottom-right
+        ])
+
+        c, s = np.cos(self.theta), np.sin(self.theta)
+        R = np.array([[c, -s], [s, c]])
+
+        return corners @ R.T + np.array([self.cx, self.cy])
+
 
     def get_sides(self):
         c = self.get_corners()
@@ -180,8 +176,12 @@ class Rectangle:
             self.points_distance(points)
         return self._points_side_ls
 
-    def sample_points(self, num_points=10, jitter=0.0, rng=None):
-        sides = self.get_sides()
+    def sample_points(
+        self, offset=(0, 0), rotation=0.0, num_points=10, jitter=0.0, rng=None
+    ):
+        R = self.copy()
+        R.move(dx=offset[0], dy=offset[1], theta=rotation)
+        sides = R.get_sides()
         points = []
 
         if rng is None:
@@ -198,54 +198,70 @@ class Rectangle:
 
         return np.array(points)
 
-    def sample(self, num_points=10, jitter_t=0.0, jitter_n=0.0, rng=None, include_corners=False):
+   
+    def sample(
+        self,
+        num_points=10,
+        offset=(0, 0),
+        rotation=0.0,
+        jitter_t=0.0,
+        jitter_n=0.0,
+        rng=None,
+        include_corners=False,
+        x_lim=None,
+        y_lim=None,
+        validate=False,
+    ):
         """
         Deterministic, near-uniform sampling along the rectangle perimeter.
-        - counts per side ∝ side length
+        - counts per side according to side length
         - evenly spaced along each side
         - optional jitter: along-edge (jitter_t) and normal (jitter_n)
+        - if validate=True, skip sampling if rectangle corners exceed x_lim / y_lim
         """
+        R = self.copy()
+        R.move(dx=offset[0], dy=offset[1], theta=rotation)
         if rng is None:
             rng = np.random.default_rng()
 
-        # Build edges in world coords (p1->p2). Assumes get_sides() has stable ordering.
-        sides = list(self.get_sides().values())  # [(p1, p2), ...]  four edges
-        p1s = np.stack([p1 for (p1, _) in sides], axis=0)   # (4,2)
-        p2s = np.stack([p2 for (_, p2) in sides], axis=0)   # (4,2)
+        # --- optional bounds check ---
+        if validate and (x_lim is not None and y_lim is not None):
+            x, y = R.get_corners().T
+            if x.min() < x_lim[0] or x.max() > x_lim[1] or y.min() < y_lim[0] or y.max() > y_lim[1]:
+                print("Warning >>> Skipping invalid rectangle...")
+                return None  
+            
+        # Build edges in world coords (p1->p2)
+        sides = list(R.get_sides().values())
+        p1s = np.stack([p1 for (p1, _) in sides], axis=0)
+        p2s = np.stack([p2 for (_, p2) in sides], axis=0)
 
-        vecs = p2s - p1s                      # (4,2)
-        lengths = np.linalg.norm(vecs, axis=1).astype(float)  # (4,)
+        vecs = p2s - p1s
+        lengths = np.linalg.norm(vecs, axis=1).astype(float)
         total = lengths.sum()
 
         if total == 0:
             return np.empty((0, 2))
 
-        # Allocate counts ∝ length (use largest fractional remainders to hit exact N)
+        # Allocate counts ∝ length
         raw = num_points * lengths / total
         counts = np.floor(raw).astype(int)
         remainder = num_points - counts.sum()
         if remainder > 0:
-            order = np.argsort(raw - counts)[::-1]  # largest fractional parts first
+            order = np.argsort(raw - counts)[::-1]
             counts[order[:remainder]] += 1
 
-        # Unit tangents and normals for jitter
+        # Unit tangents and normals
         tangents = np.divide(vecs, lengths[:, None], where=lengths[:, None] > 0)
-        normals = np.stack([tangents[:, 1], -tangents[:, 0]], axis=1)  # +90°
+        normals = np.stack([tangents[:, 1], -tangents[:, 0]], axis=1)
 
         pts = []
         for i, k in enumerate(counts):
             if k <= 0:
                 continue
+            t = np.linspace(0.0, 1.0, k, endpoint=True) if include_corners else np.arange(1, k + 1) / (k + 1)
+            base = p1s[i] + t[:, None] * vecs[i]
 
-            # Evenly spaced parameters along the edge
-            if include_corners:
-                t = np.linspace(0.0, 1.0, k, endpoint=True)
-            else:
-                t = (np.arange(1, k + 1) / (k + 1))  # avoid corners
-
-            base = p1s[i] + t[:, None] * vecs[i]  # (k,2)
-
-            # Jitter: small along-edge (keeps approximate uniformity), and/or small normal "thickness"
             if jitter_t > 0:
                 jt = rng.normal(scale=jitter_t, size=k)
                 base = base + jt[:, None] * tangents[i]
@@ -256,5 +272,4 @@ class Rectangle:
             pts.append(base)
 
         return np.vstack(pts) if pts else np.empty((0, 2))
-    
-    
+

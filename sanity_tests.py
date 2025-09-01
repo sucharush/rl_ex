@@ -1,15 +1,14 @@
 import numpy as np
-from rectangle import Rectangle
+from src.environments.rectangle import Rectangle
 import matplotlib.pyplot as plt
-from environment import RectangleEnv
-from optimizer import StepOptimizer
+from src.environments.environment import RectangleEnv
+from src.environments.optimizer import StepOptimizer
 
 def test_rectangle_distance():
     """
     Test the distance computation for the Rectangle class.
     """
     rect = Rectangle(center=(0, 0), width=4.0, height=2.0, theta=0.0)
-
 
     # Test points exactly on the sides of the rectangle
     points_on_sides = np.array([
@@ -135,7 +134,7 @@ def sanity_check_step_optimizer():
     ax.scatter(points[:, 0], points[:, 1], color="red", label="Initial Points")
     
     # Optimizer setup
-    optimizer = StepOptimizer(tau=0.5, loss="soft_l1", bounds=(-3, 3))
+    optimizer = StepOptimizer(loss="soft_l1", bounds=(-3, 3))
     
     max_iter = 0
     while rect.get_mean_dist(points) >= 0.01 and max_iter <= 20:
@@ -173,7 +172,7 @@ def make_points_sample():
 
 def build_env():
     rect_params = dict(center=(0, 0), width=2.0, height=1.0, theta=0.0)
-    optimizer_params = dict(tau=0.5, loss="soft_l1", bounds=(-5, 5))
+    optimizer_params = dict(loss="soft_l1", bounds=(-5, 5))
     pts = make_points_sample()
     env = RectangleEnv(rect_params=rect_params,
                        optimizer_params=optimizer_params,

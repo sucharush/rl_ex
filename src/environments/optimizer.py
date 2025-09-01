@@ -1,11 +1,11 @@
 import numpy as np
 from scipy.optimize import least_squares
-from rectangle import Rectangle  # Assuming Rectangle is defined in rectangle.py
+from environments.rectangle import Rectangle  # Assuming Rectangle is defined in rectangle.py
 
 
 class StepOptimizer:
-    def __init__(self, tau=0.1, loss="soft_l1", bounds=None, k_softmin=None):
-        self.tau = tau
+    def __init__(self, loss="soft_l1", bounds=None, k_softmin=None):
+        # self.tau = tau
         self.loss = loss
         self.bounds = bounds  # e.g., (-0.5, 0.5)
         self.k_softmin = k_softmin  # if you choose soft-min instead of hinge
@@ -37,11 +37,9 @@ class StepOptimizer:
         if direction == "vertical":
             # pts = np.c_[points[:, 0], points[:, 1] + shift]
             dy = shift
-
         elif direction == "horizontal":
             # pts = np.c_[points[:, 0] + shift, points[:, 1]]
             dx = shift
-
         elif direction == "rotate":
             theta = shift
 
@@ -71,21 +69,21 @@ class StepOptimizer:
 
         return np.maximum(0.0, distance_new)
 
-    def run(self, rect, points, direction, max_nfev):
-        self._validate_inputs(rect, points, direction)
-        x0 = np.array([0.0])
-        fun = lambda t: self._residuals(t, points, direction, rect=rect)
-        res = least_squares(
-            fun,
-            x0,
-            method="trf",
-            loss=self.loss,
-            max_nfev=max_nfev,
-            bounds=self.bounds if self.bounds is not None else (-np.inf, np.inf),
-        )
-        delta = float(res.x[0])
-        used = res.nfev
-        return used, delta
+    # def run(self, rect, points, direction, max_nfev):
+    #     self._validate_inputs(rect, points, direction)
+    #     x0 = np.array([0.0])
+    #     fun = lambda t: self._residuals(t, points, direction, rect=rect)
+    #     res = least_squares(
+    #         fun,
+    #         x0,
+    #         method="trf",
+    #         loss=self.loss,
+    #         max_nfev=max_nfev,
+    #         bounds=self.bounds if self.bounds is not None else (-np.inf, np.inf),
+    #     )
+    #     delta = float(res.x[0])
+    #     used = res.nfev
+    #     return used, delta
     
     def run(self, rect, points, direction, max_nfev):
         self._validate_inputs(rect, points, direction)

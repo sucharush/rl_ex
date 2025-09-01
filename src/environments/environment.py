@@ -1,7 +1,7 @@
 from collections import Counter
 import numpy as np
-from rectangle import Rectangle
-from optimizer import StepOptimizer
+from environments.rectangle import Rectangle
+from environments.optimizer import StepOptimizer
 import matplotlib.pyplot as plt
 from IPython.display import Image, display
 import imageio.v2 as imageio
@@ -9,50 +9,89 @@ import os
 
 
 class RectangleEnv:
-    def __init__(self, rect_params, optimizer_params, points, verbose=False, max_steps=50):
+    def __init__(
+        self,
+        rect_params: dict,
+        optimizer_params: dict,
+        x_lim: tuple[float, float] = (-10, 10),
+        y_lim: tuple[float, float] = (-10, 10),
+        points: list[tuple[float, float]] = None,
+        verbose: bool = False,
+        max_episode_steps: int = 50,
+        touching_dist: float = 0.2,
+        close_dist: float = 0.5,
+    ):
         self.rect_params = rect_params
         self.optimizer_params = optimizer_params
+        self.rectangle = Rectangle(**rect_params)
+        self.optimizer = StepOptimizer(**optimizer_params)
         self.starting_points = points
         self.points = points
-        self.max_steps = max_steps
+        self.max_steps = max_episode_steps
         self.steps = 0
-        self.latest_delta = 100  # large initial delta to ensure first move is always accepted
+        self.latest_delta = (
+            100  # large initial delta to ensure first move is always accepted
+        )
         self.latest_used_iters = None
         self.optimizer_iters = 0
         self.shift_steps = 0
-        self.tau = optimizer_params.get("tau", 0.2)  # default tau
-        self.close = 0.4
+        self.tau = touching_dist  # default tau
+        self.close = close_dist
         self.manual_shift = 0.5  # manual step size for move actions
         self.manual_rotate = np.pi / 4  # manual rotation step size
         self.actions = [
-            ("vertical", 2),
+            # ("vertical", 2),
             ("vertical", 4),
             ("vertical", 6),
-            ("horizontal", 2),
+            # ("horizontal", 2),
             ("horizontal", 4),
             ("horizontal", 6),
-            ("move", ("up", 0.2)),
-            ("move", ("down", 0.2)),
-            ("move", ("left", 0.2)),
-            ("move", ("right", 0.2)),
-            ("move", ("up", 0.5)),
-            ("move", ("down", 0.5)),
-            ("move", ("left", 0.5)),
-            ("move", ("right", 0.5)),
-            ("rotate", 3),
+            ("move", ("up", 0.3)),
+            ("move", ("down", 0.3)),
+            ("move", ("left", 0.3)),
+            ("move", ("right", 0.3)),
+            # ("move", ("up", 0.5)),
+            # ("move", ("down", 0.5)),
+            # ("move", ("left", 0.5)),
+            # ("move", ("right", 0.5)),
+            # ("rotate", 3),
             ("rotate", 6),
             ("rotate", 9),
             ("move", "rotate"),
         ]
-        self.rectangle = Rectangle(**rect_params)
-        self.optimizer = StepOptimizer(**optimizer_params)
         self._old_dist = self.rectangle.get_mean_dist(points=self.points)
         self.verbose_print = self.create_verbose(verbose)
         self.log = []
-        self._xlim = None
-        self._ylim = None
+        self._xlim = x_lim
+        self._ylim = y_lim
         self.state = None
+        self.inital_dist = self._old_dist
         self.frames = []
+        # if not self._is_validate_env():
+        #     raise ValueError(
+        #         f"Invalid environment: \n rectangle \n {self.rectangle.get_corners()} "
+        #         f"\n outside bounds {self._xlim} x {self._ylim}"
+        #     )
+        
+    # def _is_validate_env(self):
+    #     """Check that initial rectangle and points are within bounds."""
+    #     x_min, x_max = self._xlim
+    #     y_min, y_max = self._ylim
+
+    #     # rectangle
+    #     x, y = self.rectangle.get_corners().T
+    #     # print(x.min(), x.max(), y.min(), y.max())
+    #     if x.min() < x_min or x.max() > x_max or y.min() < y_min or y.max() > y_max:
+    #         return False
+
+    #     # points
+    #     if self.points is not None:
+    #         px, py = self.points.T
+    #         if px.min() < x_min or px.max() > x_max or py.min() < y_min or py.max() > y_max:
+    #             return False
+
+    #     return True
+
 
     def create_verbose(self, verbose):
         def verbose_print(*args, **kwargs):
@@ -67,11 +106,10 @@ class RectangleEnv:
         self.latest_used_iters = 0
         self.optimizer_iters = 0
         self._old_dist = self.rectangle.get_mean_dist(points=self.points)
+        self.inital_dist = self._old_dist
         self.log = []
-        self._xlim = None
-        self._ylim = None
         self.frames = []
-        return self.encode_state()
+        return self.encode_state() # state is updated inside encode_state()
 
     def apply_action(self, action_id):
         # self.step_count += 1
@@ -80,6 +118,8 @@ class RectangleEnv:
         direction, steps = action
         dx = dy = theta = 0.0
         horiz, vert = self.rectangle.get_local_directions()
+        # print(horiz, vert, action)
+        dvec = None
         if direction == "move":
             # print("direct_move")
             # pass
@@ -103,9 +143,12 @@ class RectangleEnv:
             logged_data = f"STEP {self.steps+1} >>>>>> Action: {action}, Delta: {delta}, Old Dist: {self._old_dist:.4f}"
             self.latest_used_iters = 0.5  # manual move always uses 0.5 iteration
         else:
+            
             used, delta = self.optimizer.run(
                 self.rectangle, self.points, direction, max_nfev=steps
             )
+            # print(delta, dvec)
+            # print(used, delta)
             logged_data = f"STEP {self.steps+1} >>>>>> Action: {action}, Used: {used}, Delta: {delta}, Old Dist: {self._old_dist:.4f}"
             # print(f"Rectangle info: {(self.rectangle.cx, self.rectangle.cy)} ")
             self.optimizer_iters += used
@@ -156,6 +199,7 @@ class RectangleEnv:
         #     os.remove(f)
 
     def compute_reward(self, alpha=1.0, beta=0.2, stalled_pen=1):
+        # print("Hello from compute_reward")
         new_dist = self.rectangle.get_mean_dist(points=self.points)
         self.log.append(f"New Distance: {new_dist}")
         improv = self._old_dist - new_dist
@@ -165,7 +209,9 @@ class RectangleEnv:
         # reward = - self.latest_used_iters
         # Update memory so next step compares to this state's distance
         self._old_dist = new_dist
-        return reward + 10 * self.is_all_touching()  # bonus for touching all sides
+        return (
+            reward + 10 * self.is_all_touching() - 10 * self.is_out_of_bounds()
+        )  # bonus for touching all sides
 
     def encode_state(self):
         # Count by closest side
@@ -206,21 +252,42 @@ class RectangleEnv:
         self.log.append(f"State: {state}")
 
         return state
+    
+    def is_out_of_bounds(self):
+        x_min, x_max = self._xlim[0], self._xlim[1]
+        y_min, y_max = self._ylim[0], self._ylim[1]
+        x, y = self.rectangle.get_corners().T
+        return x.min() < x_min or x.max() > x_max or y.min() < y_min or y.max() > y_max
 
     def is_all_touching(self):
         return self.state[6] == len(self.points)  # num_touching == N
-    
+
     def is_stalled(self):
         # Check if the rectangle has not moved significantly
         # or if the points have not changed position
         # if abs(self.latest_delta) < 1e-6:
         #     print(f"delta: {self.latest_delta}")
-        return abs(self.latest_delta) < 1e-6
+        return abs(self.latest_delta) < 1e-5
 
+    # def is_terminal(self):
+    #     # distances = np.array(self.rectangle.points_distance(points=self.points))
+    #     # all_touching = np.all(distances < self.tau)  # match binning rule
+    #     return (
+    #         self.is_out_of_bounds()
+    #         or self.is_all_touching()
+    #         or (self.steps >= self.max_steps)
+    #     )
     def is_terminal(self):
-        # distances = np.array(self.rectangle.points_distance(points=self.points))
-        # all_touching = np.all(distances < self.tau)  # match binning rule
-        return self.is_all_touching() or (self.steps >= self.max_steps)
+        if self.is_out_of_bounds():
+            self.log.append("Terminal: Out of bounds")
+            return True
+        if self.is_all_touching():
+            self.log.append("Terminal: All points touching")
+            return True
+        if self.steps >= self.max_steps:
+            self.log.append("Terminal: Max steps reached")
+            return True
+        return False
 
     def render(self):
         fig, ax = plt.subplots(figsize=(8, 8))
@@ -234,41 +301,20 @@ class RectangleEnv:
         self._xlim = self._ylim = None
         self._xticks = self._yticks = None
 
-    def render(self, lock_square=False, show=False):
+    def render(self, show=False):
         fig, ax = plt.subplots()
         self.rectangle.plot(ax, color="gray")
         ax.scatter(self.points[:, 0], self.points[:, 1], color="red")
         ax.grid(True)
 
-        x0, x1 = ax.get_xlim()
-        y0, y1 = ax.get_ylim()
-        # print(f"step: {self.step_count}, limits: x=({x0:.2f}, {x1:.2f}), y=({y0:.2f}, {y1:.2f})")
-
-        # Expand-only update of stored limits
-        if self._xlim is None or self._ylim is None:
-            self._xlim, self._ylim = (x0, x1), (y0, y1)
-        else:
-            self._xlim = (min(self._xlim[0], x0), max(self._xlim[1], x1))
-            self._ylim = (min(self._ylim[0], y0), max(self._ylim[1], y1))
-
-        # Optional: enforce square window by expanding the smaller span
-        if lock_square:
-            cx = 0.5 * (self._xlim[0] + self._xlim[1])
-            cy = 0.5 * (self._ylim[0] + self._ylim[1])
-            half = (
-                max(self._xlim[1] - self._xlim[0], self._ylim[1] - self._ylim[0]) / 2.0
-            )
-            self._xlim = (cx - half, cx + half)
-            self._ylim = (cy - half, cy + half)
-
         ax.set_xlim(*self._xlim)
         ax.set_ylim(*self._ylim)
         ax.set_title(f"Step {self.steps}")
-        # plt.show()
+
         if show:
             plt.show()
         else:
             fname = f"plots/frame_{self.steps}.png"
             fig.savefig(fname)
-            plt.close(fig)  # don’t open windows
+            plt.close(fig)
             self.frames.append(fname)
