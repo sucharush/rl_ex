@@ -177,7 +177,7 @@ def build_env():
     env = RectangleEnv(rect_params=rect_params,
                        optimizer_params=optimizer_params,
                        points=pts)
-    
+
     return env
 
 def print_state_tuple(s):
@@ -222,7 +222,8 @@ def rollout_and_print(env, steps=20):
     print("-"*72)
 
     # Cycle through all 18 actions to exercise budgets/directions
-    action_order = [3, 0, 4, 1, 5, 2, 6, 7, 8, 9, 10, 13, 17, 12, 14, 15, 2, 5, 16]  # H2, V2, H4, V4, H6, V6
+    action_order = [0, 1, 0, 6, 1, 0, 6 ]  # H2, V2, H4, V4, H6, V6
+    # print(steps)
     for t in range(steps):
         a = action_order[t % len(action_order)]
         direction, budget = env.actions[a]
@@ -233,8 +234,9 @@ def rollout_and_print(env, steps=20):
         dist_after = env.rectangle.get_mean_dist(points=env.points)
         used = env.latest_used_iters
         improvement = dist_prev - dist_after
+        # print(used)
 
-        print(f"{t:2d}  {str((direction,budget)):>12}  {used:4d}  {dist_prev:12.6f}  {dist_after:11.6f}  {improvement:7.4f}  {reward:9.4f}")
+        print(f"{t:2d}  {str((direction,budget)):>12}  {used:.2f}  {dist_prev:12.6f}  {dist_after:11.6f}  {improvement:7.4f}  {reward:9.4f}")
 
         # Optional soft check (printed, not asserted): expected reward if alpha=1, beta=0.1
         expected = improvement - 0.1 * used

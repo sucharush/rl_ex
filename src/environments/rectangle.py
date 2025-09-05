@@ -11,21 +11,10 @@ class Rectangle:
         self.latest_points = None
         self._points_distance_ls = None
         self._points_side_ls = None
-        self._latest_info = (center, theta)
+        self._latest_info = np.array([self.cx, self.cy, self.theta])
         self.update_directions()
 
-    def get_local_directions(self):
-        """
-        Return unit vectors (horizontal, vertical) in world coordinates
-        according to the current orientation theta.
-        """
-        c, s = np.cos(self.theta), np.sin(self.theta)
-        # rotation matrix
-        R = np.array([[c, -s], [s, c]])
-        horiz = R @ np.array([1.0, 0.0])
-        vert = R @ np.array([0.0, 1.0])
-        return horiz, vert
-    
+
 
     def update_directions(self):
         c, s = np.cos(self.theta), np.sin(self.theta)
@@ -54,7 +43,6 @@ class Rectangle:
 
         return corners @ R.T + np.array([self.cx, self.cy])
 
-
     def get_sides(self):
         c = self.get_corners()
         return {
@@ -67,7 +55,11 @@ class Rectangle:
     def get_local_directions(self):
         return self.horiz, self.vert
 
+    def get_info(self):
+        return np.array([self.cx, self.cy, self.theta])
+
     def move(self, dx=0.0, dy=0.0, theta=0.0):
+        self._latest_info = self.get_info()
         self.cx += dx
         self.cy += dy
         self.theta += theta
@@ -81,99 +73,69 @@ class Rectangle:
         ax.plot(corners[:, 0], corners[:, 1], **kwargs)
         ax.set_aspect("equal")
 
-    @staticmethod
-    def _cross(v1, v2):
-        """
-        Cross product helper function
-        +: counter-clockwise, -: clockwise, 0: collinear
-        """
-        return v1[0] * v2[1] - v1[1] * v2[0]
-
-    @staticmethod
-    def _point_to_segment_distance_with_closest(p, a, b):
-        ap = p - a
-        ab = b - a
-        t = np.dot(ap, ab) / np.dot(ab, ab)
-        t = np.clip(t, 0, 1)
-        closest = a + t * ab
-        return np.linalg.norm(p - closest), closest
-
-    def _point_distance_to_all_sides(self, point):
-        """
-        Calculate distance from point to all four sides of rectangle
-        Returns the minimum distance and corresponding side
-        """
-        sides = self.get_sides()
-        distances = {}
-        closest_points = {}
-
-        # Calculate distance to each side
-        for side_name, (a, b) in sides.items():
-            dist, closest = self._point_to_segment_distance_with_closest(
-                np.array(point), a, b
-            )
-            distances[side_name] = dist
-            closest_points[side_name] = closest
-
-        # Find minimum distance
-        min_side = min(distances, key=distances.get)
-        min_distance = distances[min_side]
-        closest_point = closest_points[min_side]
-        return min_side, min_distance, closest_point
 
     def points_distance(self, points, distance_only=True):
         """
-        Improved version that computes distance to nearest side correctly
+        Vectorized distance computation: compute distance from many points
+        to the rectangle sides without Python loops.
         """
         self.latest_points = points
-        points = np.atleast_2d(points)
+        points = np.atleast_2d(points)   # shape (N,2)
 
-        results = []
+        # get rectangle corners and 4 segments
+        corners = self.get_corners()
+        seg_a = np.array([corners[0], corners[1], corners[2], corners[3]])  # (4,2)
+        seg_b = np.array([corners[1], corners[2], corners[3], corners[0]])  # (4,2)
 
-        for point in points:
-            side, dist, closest_point = self._point_distance_to_all_sides(point)
-            results.append((side, dist, closest_point))
+        # expand for broadcasting
+        P = points[:, None, :]   # shape (N,1,2)
+        A = seg_a[None, :, :]    # shape (1,4,2)
+        B = seg_b[None, :, :]    # shape (1,4,2)
 
-        distances = np.array([r[1] for r in results])
-        sides = [r[0] for r in results]
+        AP = P - A               # (N,4,2)
+        AB = B - A               # (1,4,2)
 
-        self._points_distance_ls = distances
-        self._points_side_ls = sides
+        # projection scalar t
+        denom = np.sum(AB*AB, axis=-1)   # (1,4)
+        t = np.sum(AP*AB, axis=-1) / denom   # (N,4)
+        t = np.clip(t, 0.0, 1.0)
+
+        # closest point on segment for each (point, side)
+        closest = A + t[..., None] * AB  # (N,4,2)
+
+        # distances
+        diff = P - closest
+        dist = np.linalg.norm(diff, axis=-1)  # (N,4)
+
+        # choose side with min distance
+        idx_min = np.argmin(dist, axis=1)     # (N,)
+        min_dist = dist[np.arange(len(points)), idx_min]
+
+        side_names = np.array(["left", "top", "right", "bottom"])
+        min_side = side_names[idx_min]
+
+        self._points_distance_ls = min_dist
+        self._points_side_ls = min_side.tolist()
 
         if distance_only:
-            return distances
+            return min_dist
         else:
-            return distances, results
+            # collect closest points for each input point
+            min_closest = closest[np.arange(len(points)), idx_min]
+            results = [(s, d, cp) for s, d, cp in zip(min_side, min_dist, min_closest)]
+            return min_dist, results
+
 
     def get_mean_dist(self, points):
-        # print("Latest points:", self.latest_points, type(self.latest_points))
-        # print("Current points:", points, type(points))
-        if (
-            self.latest_points is None
-            or not np.array_equal(np.array(self.latest_points), np.array(points))
-            or not self._latest_info == ((self.cx, self.cy), self.theta)
-        ):
-            # print("Computing distances for new points")
-            self.points_distance(points)
+
         return np.mean(self._points_distance_ls)
 
     def get_distance_list(self, points):
-        if (
-            self.latest_points is None
-            or not np.array_equal(np.array(self.latest_points), np.array(points))
-            or not self._latest_info == ((self.cx, self.cy), self.theta)
-        ):
-            self.points_distance(points)
+
         return self._points_distance_ls
 
     def get_side_list(self, points):
 
-        if (
-            self.latest_points is None
-            or not np.array_equal(np.array(self.latest_points), np.array(points))
-            or not self._latest_info == ((self.cx, self.cy), self.theta)
-        ):
-            self.points_distance(points)
         return self._points_side_ls
 
     def sample_points(
@@ -198,7 +160,6 @@ class Rectangle:
 
         return np.array(points)
 
-   
     def sample(
         self,
         num_points=10,
@@ -229,8 +190,9 @@ class Rectangle:
             x, y = R.get_corners().T
             if x.min() < x_lim[0] or x.max() > x_lim[1] or y.min() < y_lim[0] or y.max() > y_lim[1]:
                 print("Warning >>> Skipping invalid rectangle...")
-                return None  
-            
+                return None
+
+
         # Build edges in world coords (p1->p2)
         sides = list(R.get_sides().values())
         p1s = np.stack([p1 for (p1, _) in sides], axis=0)
