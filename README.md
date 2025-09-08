@@ -12,7 +12,7 @@ The task is framed as a discrete state–action problem suitable for Q-learning,
   1. Proximity counts of points to rectangle sides.
   2. Distance distribution categories.
 - **Actions**: Optimization steps, direct moves, and rotations.
-- **Total space size**: ~1,000,000 state–action pairs.
+- **Total space size**: ~3,000,000 state–action pairs.
 
 ## Agent
 - Uses Q-learning / SARSA / n-step variants to update the Q-table.
