@@ -15,10 +15,10 @@ class RectangleEnv:
         optimizer_params: dict,
         x_lim: tuple[float, float] = (-10, 10),
         y_lim: tuple[float, float] = (-10, 10),
-        points: list[tuple[float, float]] = None,
+        points: list[tuple[float, float]] | None = None,
         verbose: bool = False,
         max_episode_steps: int = 60,
-        touching_dist: float = 0.2,
+        touching_dist: float = 0.3,
         close_dist: float = 0.5,
     ):
         self.rect_params = rect_params
