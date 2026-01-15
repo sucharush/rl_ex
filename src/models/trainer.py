@@ -132,16 +132,6 @@ class Trainer:
             while not done:
                 # a = np.argmax(self.agent.Q[s])
                 a = self.greedy_action(s)
-                # print(
-                #     "[Trainer.fit]:",
-                #     "Rect",
-                #     env.rectangle.get_info(),
-                #     "Stalled",
-                #     env.is_stalled(),
-                #     "\n",
-                #     "Distance",
-                #     env.state,
-                # )
                 if env.is_stalled():
                     a = self.agent.fallback_action(s)
                 render = True if (show_last_run and ep == episodes - 1) else False

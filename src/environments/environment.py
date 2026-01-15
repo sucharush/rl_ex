@@ -208,6 +208,7 @@ class RectangleEnv:
         return state, reward, done
 
     def show_gif(self, filename="animation.gif", fps=3, pause_frames=5):
+        print(f"Saving GIF to {filename} ...")
         images = [imageio.imread(f) for f in self.frames]
         # duplicate last frame to create pause
         images.extend([images[-1]] * pause_frames)
@@ -228,8 +229,6 @@ class RectangleEnv:
         bonus_touch=5.0,
         penalty_oob=3.0,
         clip_improv=1.0,
-        rot_improv_tol=0.3,
-        rot_factor=2,
     ):
         # distances
         D_prev = self._old_dist

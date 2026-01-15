@@ -17,10 +17,6 @@ env/
 venv/
 ENV/
 
-# Spyder project settings
-.spyderproject
-.spyproject
-
 # VS Code settings
 .vscode/
 
@@ -32,7 +28,6 @@ ENV/
 
 # Logs
 *.log
-*.Identifier
 
 # plots
 *.png
@@ -43,12 +38,11 @@ ENV/
 data/
 plots/
 
-
 # project specific files
 playground.py
 playground.ipynb
 *gifs*
-
 *.ipynb
 *old*
+*.Identifier*
 *wandb*
