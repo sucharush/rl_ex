@@ -41,17 +41,14 @@ ENV/
 # folders
 data/
 plots/
+wandb/
+videos/
+src/
+runs/
 
 # project specific files
-playground.py
-playground.ipynb
-*gifs*
+*Identifier
+*model*
+*src*
+*.py
 *.ipynb
-*old*
-*.Identifier*
-*wandb*
-*videos*
-*runs*
-# *.zip
-*sac*
-# *rectangle_ppo*
