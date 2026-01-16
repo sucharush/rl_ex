@@ -34,7 +34,7 @@ ENV/
 *.log
 
 # plots
-*.png
+# *.png
 *.gif
 *.pdf
 
