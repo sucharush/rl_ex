@@ -42,23 +42,10 @@ class RayBatch:
         # pad = self.pad
         gap = np.mod(np.abs(theta0 - theta1), 2*np.pi)
         gap = min(gap, 2*np.pi-gap)
-        pad = gap/(self.n_rays*2)
-        # print("original", theta0, theta1)
-        # print("pad", pad)
-        # if theta0 > theta1 and abs(theta0 - theta1) != np.pi:
-        #     theta0 -= 2 * np.pi
-        #     thetas = np.linspace(theta0 + pad, theta1 - pad, self.n_rays, endpoint=True)
-        # else:
-        #     thetas = np.linspace(theta0 + pad, theta1 - pad, self.n_rays, endpoint=True)
-        # print("processed",thetas.min(),thetas.max())
-        # print("original", theta0, theta1)
         dtheta = (theta1 - theta0) % (2*np.pi)
         if dtheta > np.pi:
             dtheta -= 2*np.pi   # choose the shorter way around
-        # thetas = np.linspace(theta0 + pad, theta0 + dtheta - pad, self.n_rays, endpoint=True)
-        # print(theta0, dtheta)
         thetas = np.linspace(theta0, theta0+dtheta, self.n_rays + 2, endpoint=True)[1:-1]
-        # print("processed",thetas.min(),thetas.max())
         dirs = np.stack([np.cos(thetas), np.sin(thetas)], axis=1)
         return dirs, normalize_angle(thetas)
 
@@ -88,12 +75,8 @@ class RayBatch:
         self.dirs, self.thetas = self.compute_dirs(theta0, theta1)
 
     def compute_segments_dist(self, segments: np.ndarray):
-        # o = self.origin
         p1s, p2s = segments[:, 0], segments[:, 1]
-        # print("hello from rays")
-        # print(self.origin, self.dirs, p1s.shape, p2s.shape)
         seg_dists = rays_segments_span(o=self.origin, dirs=self.dirs, p1s=p1s, p2s=p2s)
-        # print(seg_dists)
         return seg_dists
 
     def plot(self, ax=None, length=None, **kwargs):

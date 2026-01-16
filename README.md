@@ -11,6 +11,34 @@ The agent is trained using **Proximal Policy Optimization (PPO)** within the `Gy
 The agent acts in a continuous 3D action space \( a = $[\Delta x, \Delta y, \Delta \theta]$ \), where each component represents local translations and rotations of the rectangle.
 Actions are bounded and scaled by maximum step sizes \($[s_x, s_y, s_\theta]$ = [1.2, 1.2, $\pi/4$]\), ensuring consistent motion magnitudes within the bounded region \($[-10, 10]^2$\).
 
+## Quick Start
+```
+git clone https://gitlab.ado.lan.watchout.work/labodata/reinforcement-learning
+cd reinforcement-learning
+git checkout toyExample3-SCh
+```
+
+### Train
+```bash
+python3 run_gym.py train --total-timesteps 200 --save-path models/rectangle_ppo_test.zip
+```
+### Evaluate (load a model)
+```bash
+python3 run_gym.py eval --model-path models/improved3/model.zip --algo PPO --episodes 1 --max-steps 50 --render human
+```
+
+### Save a video
+```bash
+python3 run_gym.py eval --render rgb --video-path videos/eval_test.mp4 --episodes 1 --max-steps 5 --fps 3
+```
+
+### Train with wandb
+```bash
+python3 run_gym.py train --use-wandb --wandb-project rectangle-alignment --total-timesteps 200 --save-path models/rectangle_ppo_test.zip
+```
+
+
+
 ---
 
 - **Frameworks**: `Gymnasium`, `Stable-Baselines3`
@@ -32,3 +60,41 @@ PPO exhibits steady improvement in both reward and efficiency, confirming the ef
 ## Examples
 - [vedio](https://imgur.com/AgMvvN7)
 - [vedio](https://imgur.com/BVKMoo5)
+
+## CLI Entry Point
+Use `run_gym.py` to evaluate trained models, render videos, or train quickly.
+
+### CLI flags (non-trivial)
+- `--render`: `human` opens an interactive window, `rgb` captures frames for a video, `none` disables rendering.
+- `--video-path`: write an `.mp4` when `--render rgb` is used.
+- `--fps`: video frames per second for `--video-path`.
+- `--episodes`: number of evaluation episodes to run.
+- `--max-steps`: cap on steps per episode during evaluation.
+- `--algo`: which SB3 algorithm to load/train (`PPO` or `SAC`).
+- `--device`: SB3 device string (e.g., `cpu`, `cuda`).
+- `--total-timesteps`: training budget.
+- `--save-path`: output path for the trained model.
+- `--log-dir`: tensorboard log directory for training.
+- `--use-wandb`: enable wandb logging (optional).
+- `--wandb-project`: wandb project name when `--use-wandb` is set.
+- `--seed`: RNG seed for reproducible resets.
+
+
+### Save a video
+```bash
+python3 run_gym.py eval --render rgb --video-path videos/eval_test.mp4 --episodes 1 --max-steps 5 --fps 3
+```
+
+### Train
+```bash
+python3 run_gym.py train --total-timesteps 200 --save-path models/rectangle_ppo_test.zip
+```
+### Evaluate (load a model)
+```bash
+python3 run_gym.py eval --model-path models/improved3/model.zip --algo PPO --episodes 1 --max-steps 50 --render human
+```
+
+### Train with wandb
+```bash
+python3 run_gym.py train --use-wandb --wandb-project rectangle-alignment --total-timesteps 200 --save-path models/rectangle_ppo_test.zip
+```

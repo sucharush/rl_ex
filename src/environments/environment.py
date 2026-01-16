@@ -371,25 +371,25 @@ class RectangleEnv:
         self._xlim = self._ylim = None
         self._xticks = self._yticks = None
 
-    # def render(self, show=False):
-    #     fig, ax = plt.subplots()
-    #     self.rectangle.plot(ax, color="gray")
-    #     self.rays.plot()
-    #     self.segs.plot(show_points=True)
-    #     # ax.scatter(self.points[:, 0], self.points[:, 1], color="blue")
-    #     ax.grid(True)
+    def render(self, show=False):
+        fig, ax = plt.subplots()
+        self.rectangle.plot(ax, color="gray")
+        self.rays.plot()
+        self.segs.plot(show_points=True)
+        # ax.scatter(self.points[:, 0], self.points[:, 1], color="blue")
+        ax.grid(True)
 
-    #     # ax.set_xlim(*self._xlim)
-    #     # ax.set_ylim(*self._ylim)
-    #     ax.set_title(f"Step {self.steps}")
-    #     # print(self._xlim, self._ylim)
-    #     ax.set_xlim(self._xlim)
-    #     ax.set_ylim(self._ylim)
+        # ax.set_xlim(*self._xlim)
+        # ax.set_ylim(*self._ylim)
+        ax.set_title(f"Step {self.steps}")
+        # print(self._xlim, self._ylim)
+        ax.set_xlim(self._xlim)
+        ax.set_ylim(self._ylim)
 
-    #     if show:
-    #         plt.show()
-    #     else:
-    #         fname = f"plots/frame_{self.steps}.png"
-    #         fig.savefig(fname)
-    #         plt.close(fig)
-    #         self.frames.append(fname)
+        if show:
+            plt.show()
+        else:
+            fname = f"plots/frame_{self.steps}.png"
+            fig.savefig(fname)
+            plt.close(fig)
+            self.frames.append(fname)

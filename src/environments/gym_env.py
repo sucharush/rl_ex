@@ -73,11 +73,11 @@ class GymRectangleEnv(gym.Env):
         info = {}
         return np.array(state, dtype=np.float32), float(reward), done, truncated, info
 
-    def render(self):
-        if self.render_mode == "human":
-            self.renderer.render()
-        elif self.render_mode == "rgb_array":
-            return self.renderer.render(return_rgb=True)
+    # def render(self):
+    #     if self.render_mode == "human":
+    #         self.renderer.render()
+    #     elif self.render_mode == "rgb_array":
+    #         return self.renderer.render(return_rgb=True)
 
     def render(self, sec = 0.3):
         if self.renderer is None:

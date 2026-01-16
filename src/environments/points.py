@@ -8,33 +8,6 @@ class PointSet:
             raise ValueError("Points must be (N,2) array.")
         self.segments =  np.array(self.build_segments())
 
-    # @property
-    # def center(self):
-    #     """Centroid of the points."""
-    #     return self.points.mean(axis=0)
-
-    # @property
-    # def cov(self):
-    #     """2x2 covariance matrix of centered points."""
-    #     X = self.points - self.center
-    #     return X.T @ X / len(self.points)
-    # @property
-    # def principal_directions(self):
-    #     """Eigenvectors sorted by eigenvalue (largest first)."""
-    #     eigvals, eigvecs = np.linalg.eigh(self.cov)
-    #     order = np.argsort(eigvals)[::-1]
-    #     return eigvecs[:, order], eigvals[order]
-    # @property
-    # def main_direction(self):
-    #     """Unit vector of the first principal component."""
-    #     dirs, _ = self.principal_directions
-    #     return dirs[:, 0]
-    # @property
-    # def theta(self):
-    #     """Angle (radians) of the main direction."""
-    #     v = self.main_direction
-    #     return np.arctan2(v[1], v[0])
-
     def plot_points(self, ax=None, **kwargs):
         if ax is None:
             ax = plt.gca()
