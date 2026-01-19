@@ -11,13 +11,7 @@ The agent is trained using **Proximal Policy Optimization (PPO)** within the `Gy
 The agent acts in a continuous 3D action space \( a = $[\Delta x, \Delta y, \Delta \theta]$ \), where each component represents local translations and rotations of the rectangle.
 Actions are bounded and scaled by maximum step sizes \($[s_x, s_y, s_\theta]$ = [1.2, 1.2, $\pi/4$]\), ensuring consistent motion magnitudes within the bounded region \($[-10, 10]^2$\).
 
-## Quick Start
-```
-git clone https://gitlab.ado.lan.watchout.work/labodata/reinforcement-learning
-cd reinforcement-learning
-git checkout toyExample3-SCh
-```
-
+## How-to
 ### Train
 ```bash
 python3 run_gym.py train --total-timesteps 200 --save-path models/rectangle_ppo_test.zip
