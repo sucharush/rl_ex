@@ -1,10 +1,14 @@
 # Reinforcement Learning Toy Projects
 
-This repository hosts three toy RL projects, each on its own branch.
+This repository hosts three toy RL projects in rectangle alignment.
+
+## Notes
+Study notes for reinforcement learning:
+see [Project Wiki](https://github.com/sucharush/rl_ex/wiki).
 
 ## Quick Start
 ```bash
-https://github.com/sucharush/rl_ex
+git clone https://github.com/sucharush/rl_ex
 cd reinforcement-learning
 ```
 
@@ -14,12 +18,6 @@ python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
-```
-
-## Switch to a Project Branch
-```bash
-git fetch --all
-git checkout <branch-name>
 ```
 
 ## Projects Overview
