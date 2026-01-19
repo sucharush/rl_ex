@@ -1,12 +1,6 @@
 # Rectangle Alignment (RL Toy)
 
-## Quick Start
-```
-git clone https://gitlab.ado.lan.watchout.work/labodata/reinforcement-learning
-cd reinforcement-learning
-git checkout toyExample-SCh2
-
-```
+## How-to
 
 Run training/eval without the notebook.
 
